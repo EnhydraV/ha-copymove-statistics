@@ -2,6 +2,7 @@
 
 DOMAIN = "copymove_statistics"
 
+CONF_ENTITY = "entity"
 CONF_SOURCE = "source_entity"
 CONF_TARGET = "target_entity"
 CONF_MOVE = "move"

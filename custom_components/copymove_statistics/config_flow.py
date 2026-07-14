@@ -1,7 +1,8 @@
-"""Config flow « assistant » : exécute la migration puis s'arrête.
+"""Config flow « assistant » : exécute l'opération choisie puis s'arrête.
 
 Aucune entrée de configuration n'est créée : chaque passage par
-« Ajouter une intégration » lance une migration ponctuelle.
+« Ajouter une intégration » ouvre un menu (transférer / nettoyer)
+et lance une opération ponctuelle.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ENTITY,
     CONF_MOVE,
     CONF_ON_CONFLICT,
     CONF_SOURCE,
@@ -23,9 +25,15 @@ from .const import (
     ON_CONFLICT_MERGE,
     ON_CONFLICT_REPLACE,
 )
-from .stats import NoStatisticsError, StatsMigrationError, migrate_statistics
+from .stats import (
+    NoStatisticsError,
+    NotSumStatisticsError,
+    StatsMigrationError,
+    clean_decreasing_statistics,
+    migrate_statistics,
+)
 
-STEP_USER_SCHEMA = vol.Schema(
+STEP_TRANSFER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SOURCE): selector.EntitySelector(
             selector.EntitySelectorConfig()
@@ -46,16 +54,33 @@ STEP_USER_SCHEMA = vol.Schema(
     }
 )
 
+STEP_CLEAN_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig()
+        ),
+    }
+)
+
 
 class StatsImportConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Formulaire unique : source, cible, déplacer/copier."""
+    """Menu : transférer des statistiques ou nettoyer une statistique."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Étape unique du flow."""
+        """Menu d'entrée."""
+        return self.async_show_menu(
+            step_id="user",
+            menu_options=["transfer", "clean"],
+        )
+
+    async def async_step_transfer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Transfert (déplacement ou copie) source -> cible."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -92,9 +117,48 @@ class StatsImportConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="transfer",
             data_schema=self.add_suggested_values_to_schema(
-                STEP_USER_SCHEMA, user_input
+                STEP_TRANSFER_SCHEMA, user_input
+            ),
+            errors=errors,
+        )
+
+    async def async_step_clean(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Nettoyage d'une statistique de cumul (suppression des baisses)."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            entity: str = user_input[CONF_ENTITY]
+            instance = get_instance(self.hass)
+            try:
+                result = await instance.async_add_executor_job(
+                    clean_decreasing_statistics, instance, entity
+                )
+            except NoStatisticsError:
+                errors[CONF_ENTITY] = "no_statistics"
+            except NotSumStatisticsError:
+                errors[CONF_ENTITY] = "not_sum"
+            except StatsMigrationError:
+                errors["base"] = "migration_failed"
+            else:
+                return self.async_abort(
+                    reason="cleaned",
+                    description_placeholders={
+                        "entity": entity,
+                        "long_term_deleted": str(result.long_term_deleted),
+                        "long_term_scanned": str(result.long_term_scanned),
+                        "short_term_deleted": str(result.short_term_deleted),
+                        "short_term_scanned": str(result.short_term_scanned),
+                    },
+                )
+
+        return self.async_show_form(
+            step_id="clean",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_CLEAN_SCHEMA, user_input
             ),
             errors=errors,
         )

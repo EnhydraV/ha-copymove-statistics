@@ -2,9 +2,10 @@
 
 
 Dépôt : https://github.com/EnhydraV/ha-copymove-statistics
-Intégration Home Assistant (compatible HACS) pour transférer les statistiques **long terme** (`statistics`) et **court terme** (`statistics_short_term`) d'une entité vers une autre. Cas d'usage typique : un capteur a été remplacé ou renommé et vous voulez rattacher son historique de statistiques à la nouvelle entité.
+Intégration Home Assistant (compatible HACS) pour manipuler les statistiques **long terme** (`statistics`) et **court terme** (`statistics_short_term`) du recorder. Deux utilitaires :
 
-Par défaut, les statistiques sont **déplacées** (retirées de l'entité source). Décochez la case pour les **copier**.
+- **Transférer** les statistiques d'une entité vers une autre. Cas d'usage typique : un capteur a été remplacé ou renommé et vous voulez rattacher son historique de statistiques à la nouvelle entité. Par défaut, les statistiques sont **déplacées** (retirées de l'entité source) ; décochez la case pour les **copier**.
+- **Nettoyer** une statistique censée être toujours croissante (compteur `total` / `total_increasing`) en supprimant les valeurs qui baissent (pics aberrants, imports ratés).
 
 ## Installation
 
@@ -20,11 +21,19 @@ Copiez `custom_components/copymove_statistics/` dans le dossier `custom_componen
 
 ## Utilisation
 
-1. *Paramètres → Appareils et services → Ajouter une intégration → Copy/Move Statistics*.
-2. Choisissez l'**entité source** et l'**entité cible** (sélecteurs avec autocomplétion).
-3. Laissez **Déplacer** coché (ou décochez pour copier).
-4. Choisissez la stratégie **si la cible a déjà des statistiques** : *Fusionner* (défaut) ou *Remplacer*, puis validez.
-4. Un récapitulatif s'affiche (nombre de lignes long terme / court terme transférées). Aucune entrée d'intégration n'est créée : le formulaire est un assistant ponctuel, relançable à volonté.
+*Paramètres → Appareils et services → Ajouter une intégration → Copy/Move Statistics*, puis choisissez l'utilitaire dans le menu. Aucune entrée d'intégration n'est créée : le formulaire est un assistant ponctuel, relançable à volonté.
+
+### Transférer des statistiques
+
+1. Choisissez l'**entité source** et l'**entité cible** (sélecteurs avec autocomplétion).
+2. Laissez **Déplacer** coché (ou décochez pour copier).
+3. Choisissez la stratégie **si la cible a déjà des statistiques** : *Fusionner* (défaut) ou *Remplacer*, puis validez.
+4. Un récapitulatif s'affiche (nombre de lignes long terme / court terme transférées).
+
+### Nettoyer une statistique croissante
+
+1. Choisissez l'**entité** à nettoyer (elle doit avoir des statistiques de type cumul/`sum`, c'est-à-dire un capteur `total` ou `total_increasing`).
+2. Validez : les lignes dont le cumul passe sous le maximum atteint avant elles sont supprimées, en long terme comme en court terme. Un récapitulatif indique le nombre de lignes supprimées et examinées.
 
 ## Fonctionnement
 
@@ -34,6 +43,7 @@ L'opération agit directement sur la base du recorder (SQLite, MariaDB/MySQL ou 
 - **Déplacement, cible avec statistiques (fusion)** : les lignes source sont re-pointées vers la métadonnée cible, puis la métadonnée source est supprimée. En cas de collision sur un même `start_ts`, la ligne **de la cible** est conservée.
 - **Remplacement** : toutes les statistiques existantes de la cible (long et court terme) sont d'abord supprimées ; les métadonnées (unité, type mean/sum) sont reprises de la source. Le récapitulatif indique le nombre de lignes supprimées.
 - **Copie** : les lignes sont dupliquées ; la métadonnée cible est créée (clonée depuis la source) si nécessaire, et la source conserve tout.
+- **Nettoyage** : les lignes sont parcourues dans l'ordre chronologique (`start_ts`) avec un maximum courant sur la colonne `sum` ; toute ligne strictement inférieure au maximum est supprimée, les autres font avancer le maximum. La colonne `state` n'est pas contrôlée : une remise à zéro du compteur y est légitime, seul le cumul `sum` doit être monotone.
 
 ## Précautions
 

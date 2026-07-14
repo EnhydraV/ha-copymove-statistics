@@ -2,6 +2,13 @@
   "config": {
     "step": {
       "user": {
+        "title": "Copy/Move Statistics",
+        "menu_options": {
+          "transfer": "Transférer des statistiques entre entités",
+          "clean": "Nettoyer une statistique toujours croissante (supprimer les baisses)"
+        }
+      },
+      "transfer": {
         "title": "Importer des statistiques",
         "description": "Transfère les statistiques long terme et court terme d'une entité vers une autre. Par défaut les statistiques sont déplacées (retirées de l'entité source) ; décochez pour copier. Si la cible possède déjà des statistiques, choisissez entre fusionner (les lignes existantes de la cible gagnent en cas de collision d'horodatage) ou les remplacer intégralement.",
         "data": {
@@ -10,18 +17,27 @@
           "move": "Déplacer (décocher pour copier)",
           "on_conflict": "Si la cible a déjà des statistiques"
         }
+      },
+      "clean": {
+        "title": "Nettoyer des statistiques",
+        "description": "Pour une statistique de type total/total_increasing, le cumul (sum) ne doit jamais baisser. Cet utilitaire parcourt les statistiques long terme et court terme dans l'ordre chronologique et supprime toute ligne dont le cumul passe sous le maximum atteint avant elle (glitch de capteur, import raté). La colonne state n'est pas touchée : une remise à zéro du compteur y est légitime. Sauvegardez votre base au préalable.",
+        "data": {
+          "entity": "Entité"
+        }
       }
     },
     "error": {
       "same_entity": "La source et la cible doivent être des entités différentes.",
       "no_statistics": "Aucune statistique trouvée pour l'entité source.",
-      "migration_failed": "Échec de la migration — consultez les journaux de Home Assistant."
+      "not_sum": "Les statistiques de cette entité n'ont pas de cumul (pas un capteur total/total_increasing) ; il n'y a rien à nettoyer.",
+      "migration_failed": "Échec de l'opération — consultez les journaux de Home Assistant."
     },
     "abort": {
       "moved": "Statistiques déplacées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
       "copied": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
       "moved_replaced": "Statistiques déplacées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
-      "copied_replaced": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder."
+      "copied_replaced": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
+      "cleaned": "Statistiques nettoyées pour {entity} : {long_term_deleted} lignes long terme supprimées sur {long_term_scanned}, {short_term_deleted} lignes court terme sur {short_term_scanned}. Redémarrez Home Assistant pour rafraîchir les caches du recorder."
     }
   },
   "selector": {

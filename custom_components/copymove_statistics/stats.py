@@ -51,6 +51,10 @@ class NoStatisticsError(StatsMigrationError):
     """L'entité source ne possède aucune statistique."""
 
 
+class NotSumStatisticsError(StatsMigrationError):
+    """La statistique n'est pas de type cumul (sum) : rien à nettoyer."""
+
+
 @dataclass(slots=True)
 class MigrationResult:
     """Résultat d'une migration."""
@@ -59,6 +63,16 @@ class MigrationResult:
     short_term: int
     merged: bool
     replaced: int = 0  # lignes de la cible supprimées (stratégie replace)
+
+
+@dataclass(slots=True)
+class CleanResult:
+    """Résultat d'un nettoyage de statistique croissante."""
+
+    long_term_scanned: int
+    long_term_deleted: int
+    short_term_scanned: int
+    short_term_deleted: int
 
 
 def _get_meta(session: Session, statistic_id: str) -> StatisticsMeta | None:
@@ -275,4 +289,81 @@ def migrate_statistics(
         _LOGGER.exception(
             "Échec de la migration des statistiques %s -> %s", source, target
         )
+        raise StatsMigrationError(str(err)) from err
+
+
+def _clean_table(session: Session, table: Any, meta_id: int) -> tuple[int, int]:
+    """Supprime les lignes dont le `sum` passe sous le maximum déjà atteint.
+
+    Balayage dans l'ordre chronologique avec un maximum courant : toute
+    ligne strictement inférieure est supprimée, les autres font avancer
+    le maximum. Les lignes sans `sum` sont ignorées (jamais supprimées).
+    Retourne (lignes examinées, lignes supprimées).
+    """
+    rows = session.execute(
+        select(table.id, table.sum)
+        .where(table.metadata_id == meta_id)
+        .order_by(table.start_ts)
+    ).all()
+
+    running_max: float | None = None
+    doomed: list[int] = []
+    for row_id, value in rows:
+        if value is None:
+            continue
+        if running_max is not None and value < running_max:
+            doomed.append(row_id)
+        else:
+            running_max = value
+
+    for i in range(0, len(doomed), _INSERT_CHUNK):
+        session.execute(
+            delete(table)
+            .where(table.id.in_(doomed[i : i + _INSERT_CHUNK]))
+            .execution_options(synchronize_session=False)
+        )
+    return len(rows), len(doomed)
+
+
+def clean_decreasing_statistics(instance: Recorder, statistic_id: str) -> CleanResult:
+    """Nettoie une statistique de cumul : supprime les valeurs qui baissent.
+
+    Réservé aux statistiques de type `sum` (compteurs `total` /
+    `total_increasing`) : leur colonne `sum` doit être monotone
+    croissante, une baisse trahit une valeur aberrante (glitch de
+    capteur, import raté). Le `state`, lui, a le droit de retomber à
+    zéro (remise à zéro du compteur) : il n'est pas contrôlé.
+
+    À exécuter via `instance.async_add_executor_job(...)`.
+    """
+    try:
+        with session_scope(session=instance.get_session()) as session:
+            meta = _get_meta(session, statistic_id)
+            if meta is None:
+                raise NoStatisticsError(
+                    f"Aucune statistique trouvée pour {statistic_id}"
+                )
+            if not getattr(meta, "has_sum", False):
+                raise NotSumStatisticsError(
+                    f"{statistic_id} n'est pas une statistique de cumul (sum)"
+                )
+
+            lt_scanned, lt_deleted = _clean_table(session, Statistics, meta.id)
+            st_scanned, st_deleted = _clean_table(
+                session, StatisticsShortTerm, meta.id
+            )
+            _LOGGER.info(
+                "Statistiques nettoyées pour %s : %d/%d LT et %d/%d CT supprimées",
+                statistic_id,
+                lt_deleted,
+                lt_scanned,
+                st_deleted,
+                st_scanned,
+            )
+            return CleanResult(lt_scanned, lt_deleted, st_scanned, st_deleted)
+
+    except StatsMigrationError:
+        raise
+    except Exception as err:  # noqa: BLE001 - remonté sous forme d'erreur métier
+        _LOGGER.exception("Échec du nettoyage des statistiques de %s", statistic_id)
         raise StatsMigrationError(str(err)) from err

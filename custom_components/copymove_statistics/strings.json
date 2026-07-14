@@ -2,6 +2,13 @@
   "config": {
     "step": {
       "user": {
+        "title": "Copy/Move Statistics",
+        "menu_options": {
+          "transfer": "Transfer statistics between entities",
+          "clean": "Clean an ever-increasing statistic (delete decreasing values)"
+        }
+      },
+      "transfer": {
         "title": "Import statistics",
         "description": "Transfers long-term and short-term statistics from one entity to another. By default statistics are moved (removed from the source entity); uncheck to copy instead. If the target already has statistics, choose whether to merge (the target's existing rows win on timestamp collisions) or replace them entirely.",
         "data": {
@@ -10,18 +17,27 @@
           "move": "Move (uncheck to copy)",
           "on_conflict": "If the target already has statistics"
         }
+      },
+      "clean": {
+        "title": "Clean statistics",
+        "description": "For a total/total_increasing statistic, the cumulative sum must never decrease. This utility scans long-term and short-term statistics in chronological order and deletes every row whose sum falls below the maximum reached before it (sensor glitches, bad imports). The state column is left untouched — a meter reset is legitimate there. Back up your database first.",
+        "data": {
+          "entity": "Entity"
+        }
       }
     },
     "error": {
       "same_entity": "Source and target must be different entities.",
       "no_statistics": "No statistics found for the source entity.",
-      "migration_failed": "Migration failed — check the Home Assistant logs."
+      "not_sum": "This entity's statistics have no cumulative sum (not a total/total_increasing sensor); there is nothing to clean.",
+      "migration_failed": "Operation failed — check the Home Assistant logs."
     },
     "abort": {
       "moved": "Statistics moved from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. Restart Home Assistant to refresh the recorder caches.",
       "copied": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. Restart Home Assistant to refresh the recorder caches.",
       "moved_replaced": "Statistics moved from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches.",
-      "copied_replaced": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches."
+      "copied_replaced": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches.",
+      "cleaned": "Statistics cleaned for {entity}: {long_term_deleted} of {long_term_scanned} long-term rows and {short_term_deleted} of {short_term_scanned} short-term rows deleted. Restart Home Assistant to refresh the recorder caches."
     }
   },
   "selector": {
