@@ -1,0 +1,13 @@
+{
+  "domain": "copymove_statistics",
+  "name": "Copy/Move Statistics",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/EnhydraV/ha-copymove-statistics",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/EnhydraV/ha-copymove-statistics/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

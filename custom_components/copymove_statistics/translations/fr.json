@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Importer des statistiques",
+        "description": "Transfère les statistiques long terme et court terme d'une entité vers une autre. Par défaut les statistiques sont déplacées (retirées de l'entité source) ; décochez pour copier. Si la cible possède déjà des statistiques, choisissez entre fusionner (les lignes existantes de la cible gagnent en cas de collision d'horodatage) ou les remplacer intégralement.",
+        "data": {
+          "source_entity": "Entité source",
+          "target_entity": "Entité cible",
+          "move": "Déplacer (décocher pour copier)",
+          "on_conflict": "Si la cible a déjà des statistiques"
+        }
+      }
+    },
+    "error": {
+      "same_entity": "La source et la cible doivent être des entités différentes.",
+      "no_statistics": "Aucune statistique trouvée pour l'entité source.",
+      "migration_failed": "Échec de la migration — consultez les journaux de Home Assistant."
+    },
+    "abort": {
+      "moved": "Statistiques déplacées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
+      "copied": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
+      "moved_replaced": "Statistiques déplacées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
+      "copied_replaced": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder."
+    }
+  },
+  "selector": {
+    "on_conflict": {
+      "options": {
+        "merge": "Fusionner (conserver les lignes de la cible en cas de collision)",
+        "replace": "Remplacer (supprimer les statistiques existantes de la cible)"
+      }
+    }
+  }
+}

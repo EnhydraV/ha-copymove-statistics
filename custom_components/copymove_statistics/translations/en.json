@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Import statistics",
+        "description": "Transfers long-term and short-term statistics from one entity to another. By default statistics are moved (removed from the source entity); uncheck to copy instead. If the target already has statistics, choose whether to merge (the target's existing rows win on timestamp collisions) or replace them entirely.",
+        "data": {
+          "source_entity": "Source entity",
+          "target_entity": "Target entity",
+          "move": "Move (uncheck to copy)",
+          "on_conflict": "If the target already has statistics"
+        }
+      }
+    },
+    "error": {
+      "same_entity": "Source and target must be different entities.",
+      "no_statistics": "No statistics found for the source entity.",
+      "migration_failed": "Migration failed — check the Home Assistant logs."
+    },
+    "abort": {
+      "moved": "Statistics moved from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. Restart Home Assistant to refresh the recorder caches.",
+      "copied": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. Restart Home Assistant to refresh the recorder caches.",
+      "moved_replaced": "Statistics moved from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches.",
+      "copied_replaced": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches."
+    }
+  },
+  "selector": {
+    "on_conflict": {
+      "options": {
+        "merge": "Merge (keep the target's rows on collisions)",
+        "replace": "Replace (delete the target's existing statistics)"
+      }
+    }
+  }
+}
