@@ -5,7 +5,8 @@
         "title": "Copy/Move Statistics",
         "menu_options": {
           "transfer": "Transfer statistics between entities",
-          "clean": "Clean an ever-increasing statistic (delete decreasing values)"
+          "clean": "Clean an ever-increasing statistic (delete decreasing values)",
+          "edit": "Browse / edit an entity's statistic values"
         }
       },
       "transfer": {
@@ -24,12 +25,51 @@
         "data": {
           "entity": "Entity"
         }
+      },
+      "edit": {
+        "title": "Browse statistic values",
+        "description": "Lists an entity's statistic rows so you can fix or delete individual values. Choose the table (long-term = hourly, short-term = every 5 minutes) and optionally narrow the period. Back up your database first.",
+        "data": {
+          "entity": "Entity",
+          "table": "Statistics table",
+          "period_start": "From (optional)",
+          "period_end": "To (optional)"
+        }
+      },
+      "edit_rows": {
+        "title": "Statistic values",
+        "description": "{shown} row(s) shown out of {total} for {entity} (most recent first — narrow the period if a row is missing). Select one row to edit it, several rows to delete them, or submit with no selection to finish.",
+        "data": {
+          "rows": "Rows"
+        }
+      },
+      "edit_value": {
+        "title": "Edit a row",
+        "description": "Row of {when} for {entity}. Adjust the values, or tick Delete to remove the row. Values are written as-is: neighbouring rows and cumulative sums are not recalculated.",
+        "data": {
+          "state": "State",
+          "sum": "Sum (cumulative)",
+          "mean": "Mean",
+          "min": "Min",
+          "max": "Max",
+          "delete": "Delete this row"
+        }
+      },
+      "edit_delete": {
+        "title": "Delete rows",
+        "description": "You are about to delete {count} statistic row(s) of {entity}. This cannot be undone.",
+        "data": {
+          "confirm": "Yes, delete these rows"
+        }
       }
     },
     "error": {
       "same_entity": "Source and target must be different entities.",
-      "no_statistics": "No statistics found for the source entity.",
+      "no_statistics": "No statistics found for this entity.",
       "not_sum": "This entity's statistics have no cumulative sum (not a total/total_increasing sensor); there is nothing to clean.",
+      "no_rows": "No statistic rows found in the selected period.",
+      "invalid_period": "The start of the period must be before its end.",
+      "row_not_found": "This row no longer exists — the list has been refreshed.",
       "migration_failed": "Operation failed — check the Home Assistant logs."
     },
     "abort": {
@@ -37,7 +77,8 @@
       "copied": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. Restart Home Assistant to refresh the recorder caches.",
       "moved_replaced": "Statistics moved from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches.",
       "copied_replaced": "Statistics copied from {source} to {target}: {long_term} long-term rows, {short_term} short-term rows. {replaced} existing rows on the target were deleted first. Restart Home Assistant to refresh the recorder caches.",
-      "cleaned": "Statistics cleaned for {entity}: {long_term_deleted} of {long_term_scanned} long-term rows and {short_term_deleted} of {short_term_scanned} short-term rows deleted. Restart Home Assistant to refresh the recorder caches."
+      "cleaned": "Statistics cleaned for {entity}: {long_term_deleted} of {long_term_scanned} long-term rows and {short_term_deleted} of {short_term_scanned} short-term rows deleted. Restart Home Assistant to refresh the recorder caches.",
+      "edit_done": "Editing finished for {entity}: {modified} row(s) modified, {deleted} row(s) deleted. Charts pick up the changes on their next refresh."
     }
   },
   "selector": {
@@ -45,6 +86,12 @@
       "options": {
         "merge": "Merge (keep the target's rows on collisions)",
         "replace": "Replace (delete the target's existing statistics)"
+      }
+    },
+    "table": {
+      "options": {
+        "long_term": "Long-term (hourly)",
+        "short_term": "Short-term (every 5 minutes)"
       }
     }
   }

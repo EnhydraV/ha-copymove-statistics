@@ -5,7 +5,8 @@
         "title": "Copy/Move Statistics",
         "menu_options": {
           "transfer": "Transférer des statistiques entre entités",
-          "clean": "Nettoyer une statistique toujours croissante (supprimer les baisses)"
+          "clean": "Nettoyer une statistique toujours croissante (supprimer les baisses)",
+          "edit": "Consulter / modifier les valeurs de statistiques d'une entité"
         }
       },
       "transfer": {
@@ -24,12 +25,51 @@
         "data": {
           "entity": "Entité"
         }
+      },
+      "edit": {
+        "title": "Consulter les valeurs de statistiques",
+        "description": "Liste les lignes de statistiques d'une entité pour corriger ou supprimer des valeurs individuelles. Choisissez la table (long terme = horaire, court terme = toutes les 5 minutes) et, au besoin, restreignez la période. Sauvegardez votre base au préalable.",
+        "data": {
+          "entity": "Entité",
+          "table": "Table de statistiques",
+          "period_start": "Depuis (optionnel)",
+          "period_end": "Jusqu'à (optionnel)"
+        }
+      },
+      "edit_rows": {
+        "title": "Valeurs de statistiques",
+        "description": "{shown} ligne(s) affichée(s) sur {total} pour {entity} (les plus récentes d'abord — restreignez la période si une ligne manque). Sélectionnez une ligne pour la modifier, plusieurs pour les supprimer, ou validez sans sélection pour terminer.",
+        "data": {
+          "rows": "Lignes"
+        }
+      },
+      "edit_value": {
+        "title": "Modifier une ligne",
+        "description": "Ligne du {when} pour {entity}. Ajustez les valeurs, ou cochez Supprimer pour effacer la ligne. Les valeurs sont écrites telles quelles : les lignes voisines et les cumuls ne sont pas recalculés.",
+        "data": {
+          "state": "State",
+          "sum": "Sum (cumul)",
+          "mean": "Moyenne",
+          "min": "Min",
+          "max": "Max",
+          "delete": "Supprimer cette ligne"
+        }
+      },
+      "edit_delete": {
+        "title": "Supprimer des lignes",
+        "description": "Vous êtes sur le point de supprimer {count} ligne(s) de statistiques de {entity}. Cette action est irréversible.",
+        "data": {
+          "confirm": "Oui, supprimer ces lignes"
+        }
       }
     },
     "error": {
       "same_entity": "La source et la cible doivent être des entités différentes.",
-      "no_statistics": "Aucune statistique trouvée pour l'entité source.",
+      "no_statistics": "Aucune statistique trouvée pour cette entité.",
       "not_sum": "Les statistiques de cette entité n'ont pas de cumul (pas un capteur total/total_increasing) ; il n'y a rien à nettoyer.",
+      "no_rows": "Aucune ligne de statistiques trouvée sur la période choisie.",
+      "invalid_period": "Le début de la période doit précéder sa fin.",
+      "row_not_found": "Cette ligne n'existe plus — la liste a été rafraîchie.",
       "migration_failed": "Échec de l'opération — consultez les journaux de Home Assistant."
     },
     "abort": {
@@ -37,7 +77,8 @@
       "copied": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
       "moved_replaced": "Statistiques déplacées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
       "copied_replaced": "Statistiques copiées de {source} vers {target} : {long_term} lignes long terme, {short_term} lignes court terme. {replaced} lignes existantes de la cible ont d'abord été supprimées. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
-      "cleaned": "Statistiques nettoyées pour {entity} : {long_term_deleted} lignes long terme supprimées sur {long_term_scanned}, {short_term_deleted} lignes court terme sur {short_term_scanned}. Redémarrez Home Assistant pour rafraîchir les caches du recorder."
+      "cleaned": "Statistiques nettoyées pour {entity} : {long_term_deleted} lignes long terme supprimées sur {long_term_scanned}, {short_term_deleted} lignes court terme sur {short_term_scanned}. Redémarrez Home Assistant pour rafraîchir les caches du recorder.",
+      "edit_done": "Édition terminée pour {entity} : {modified} ligne(s) modifiée(s), {deleted} ligne(s) supprimée(s). Les graphiques prendront les changements en compte à leur prochain rafraîchissement."
     }
   },
   "selector": {
@@ -45,6 +86,12 @@
       "options": {
         "merge": "Fusionner (conserver les lignes de la cible en cas de collision)",
         "replace": "Remplacer (supprimer les statistiques existantes de la cible)"
+      }
+    },
+    "table": {
+      "options": {
+        "long_term": "Long terme (horaire)",
+        "short_term": "Court terme (toutes les 5 minutes)"
       }
     }
   }

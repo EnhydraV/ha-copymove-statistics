@@ -41,6 +41,8 @@ _LOGGER = logging.getLogger(__name__)
 _INSERT_CHUNK = 1000
 # Colonnes jamais recopiées telles quelles lors d'un clonage de ligne.
 _ROW_EXCLUDE = {"id", "metadata_id", "created", "created_ts"}
+# Colonnes de valeurs éditables d'une ligne de statistiques.
+VALUE_COLUMNS = ("state", "sum", "mean", "min", "max")
 
 
 class StatsMigrationError(HomeAssistantError):
@@ -55,6 +57,10 @@ class NotSumStatisticsError(StatsMigrationError):
     """La statistique n'est pas de type cumul (sum) : rien à nettoyer."""
 
 
+class RowNotFoundError(StatsMigrationError):
+    """La ligne visée n'existe plus (supprimée ou purgée entre-temps)."""
+
+
 @dataclass(slots=True)
 class MigrationResult:
     """Résultat d'une migration."""
@@ -63,6 +69,16 @@ class MigrationResult:
     short_term: int
     merged: bool
     replaced: int = 0  # lignes de la cible supprimées (stratégie replace)
+
+
+@dataclass(slots=True)
+class BrowseResult:
+    """Extrait paginé des lignes de statistiques d'une entité."""
+
+    rows: list[dict[str, Any]]  # id, start_ts + VALUE_COLUMNS
+    total: int
+    has_sum: bool
+    has_mean: bool
 
 
 @dataclass(slots=True)
@@ -366,4 +382,175 @@ def clean_decreasing_statistics(instance: Recorder, statistic_id: str) -> CleanR
         raise
     except Exception as err:  # noqa: BLE001 - remonté sous forme d'erreur métier
         _LOGGER.exception("Échec du nettoyage des statistiques de %s", statistic_id)
+        raise StatsMigrationError(str(err)) from err
+
+
+def _stats_table(short_term: bool) -> Any:
+    return StatisticsShortTerm if short_term else Statistics
+
+
+def _meta_has_mean(meta: StatisticsMeta) -> bool:
+    """`has_mean` a été remplacé par `mean_type` dans les schémas récents."""
+    mean_type = getattr(meta, "mean_type", None)
+    if mean_type is not None:
+        return int(mean_type) != 0
+    return bool(getattr(meta, "has_mean", False))
+
+
+def list_statistic_rows(
+    instance: Recorder,
+    statistic_id: str,
+    short_term: bool,
+    start_ts: float | None = None,
+    end_ts: float | None = None,
+    limit: int = 200,
+) -> BrowseResult:
+    """Liste les lignes de statistiques d'une entité (les plus récentes d'abord).
+
+    Retourne au plus `limit` lignes de la période demandée, rendues dans
+    l'ordre chronologique, plus le nombre total de lignes de la période.
+
+    À exécuter via `instance.async_add_executor_job(...)`.
+    """
+    try:
+        with session_scope(session=instance.get_session()) as session:
+            meta = _get_meta(session, statistic_id)
+            if meta is None:
+                raise NoStatisticsError(
+                    f"Aucune statistique trouvée pour {statistic_id}"
+                )
+            table = _stats_table(short_term)
+            conditions = [table.metadata_id == meta.id]
+            if start_ts is not None:
+                conditions.append(table.start_ts >= start_ts)
+            if end_ts is not None:
+                conditions.append(table.start_ts <= end_ts)
+
+            total = session.execute(
+                select(func.count()).select_from(table).where(*conditions)
+            ).scalar_one()
+            fetched = session.execute(
+                select(
+                    table.id,
+                    table.start_ts,
+                    *(getattr(table, column) for column in VALUE_COLUMNS),
+                )
+                .where(*conditions)
+                .order_by(table.start_ts.desc())
+                .limit(limit)
+            ).all()
+
+            rows = [dict(row._mapping) for row in reversed(fetched)]
+            return BrowseResult(
+                rows=rows,
+                total=total,
+                has_sum=bool(getattr(meta, "has_sum", False)),
+                has_mean=_meta_has_mean(meta),
+            )
+
+    except StatsMigrationError:
+        raise
+    except Exception as err:  # noqa: BLE001 - remonté sous forme d'erreur métier
+        _LOGGER.exception("Échec de la lecture des statistiques de %s", statistic_id)
+        raise StatsMigrationError(str(err)) from err
+
+
+def update_statistic_row(
+    instance: Recorder,
+    statistic_id: str,
+    short_term: bool,
+    row_id: int,
+    values: dict[str, float],
+) -> None:
+    """Met à jour les colonnes de valeurs d'une ligne de statistiques.
+
+    `values` ne peut contenir que des colonnes de VALUE_COLUMNS. La ligne
+    doit appartenir à l'entité indiquée (garde-fou contre un id périmé).
+
+    À exécuter via `instance.async_add_executor_job(...)`.
+    """
+    if not values:
+        return
+    if invalid := set(values) - set(VALUE_COLUMNS):
+        raise StatsMigrationError(f"Colonnes non éditables : {sorted(invalid)}")
+    try:
+        with session_scope(session=instance.get_session()) as session:
+            meta = _get_meta(session, statistic_id)
+            if meta is None:
+                raise NoStatisticsError(
+                    f"Aucune statistique trouvée pour {statistic_id}"
+                )
+            table = _stats_table(short_term)
+            result = session.execute(
+                update(table)
+                .where(table.id == row_id, table.metadata_id == meta.id)
+                .values(**values)
+                .execution_options(synchronize_session=False)
+            )
+            if not result.rowcount:
+                raise RowNotFoundError(
+                    f"Ligne {row_id} introuvable pour {statistic_id}"
+                )
+            _LOGGER.info(
+                "Statistique %s : ligne %d mise à jour (%s)",
+                statistic_id,
+                row_id,
+                values,
+            )
+
+    except StatsMigrationError:
+        raise
+    except Exception as err:  # noqa: BLE001 - remonté sous forme d'erreur métier
+        _LOGGER.exception(
+            "Échec de la mise à jour de la ligne %d de %s", row_id, statistic_id
+        )
+        raise StatsMigrationError(str(err)) from err
+
+
+def delete_statistic_rows(
+    instance: Recorder,
+    statistic_id: str,
+    short_term: bool,
+    row_ids: list[int],
+) -> int:
+    """Supprime des lignes de statistiques d'une entité, retourne le nombre supprimé.
+
+    À exécuter via `instance.async_add_executor_job(...)`.
+    """
+    if not row_ids:
+        return 0
+    try:
+        with session_scope(session=instance.get_session()) as session:
+            meta = _get_meta(session, statistic_id)
+            if meta is None:
+                raise NoStatisticsError(
+                    f"Aucune statistique trouvée pour {statistic_id}"
+                )
+            table = _stats_table(short_term)
+            deleted = 0
+            for i in range(0, len(row_ids), _INSERT_CHUNK):
+                result = session.execute(
+                    delete(table)
+                    .where(
+                        table.id.in_(row_ids[i : i + _INSERT_CHUNK]),
+                        table.metadata_id == meta.id,
+                    )
+                    .execution_options(synchronize_session=False)
+                )
+                deleted += result.rowcount or 0
+            if not deleted:
+                raise RowNotFoundError(
+                    f"Aucune des lignes visées n'existe plus pour {statistic_id}"
+                )
+            _LOGGER.info(
+                "Statistique %s : %d ligne(s) supprimée(s)", statistic_id, deleted
+            )
+            return deleted
+
+    except StatsMigrationError:
+        raise
+    except Exception as err:  # noqa: BLE001 - remonté sous forme d'erreur métier
+        _LOGGER.exception(
+            "Échec de la suppression de lignes de %s", statistic_id
+        )
         raise StatsMigrationError(str(err)) from err
